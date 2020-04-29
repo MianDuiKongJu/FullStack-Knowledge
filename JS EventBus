@@ -1,0 +1,74 @@
+class EventEmitter {
+  constructor() {
+    this._event = this._event || new Map() // 储存事件
+    this._maxListeners = this._maxListeners || 10 // 设置监听上限
+  }
+}
+
+EventEmitter.prototype.emit = function (type, ...args) {
+  let handler = null
+  handler = this._event.get(type)
+
+  if (Array.isArray(handler)) {
+    // 有多个监听者,需要依次触发
+    for (let i = 0; i < handler.length; i++) {
+      if (args.length > 0) {
+        handler[i].apply(this, args)
+      } else {
+        handler[i].call(this)
+      }
+    }
+  } else if (handler && typeof handler === 'function') {
+    if (args.length > 0) {
+      handler.apply(this, args)
+    } else {
+      handler.call(this)
+    }
+  }
+
+  return true
+}
+
+EventEmitter.prototype.addListener =  function (type, fn) {
+  let handler = this._event.get(type)
+
+  if (!handler) {
+    this._event.set(type, fn)
+  } else if (handler && typeof handler === 'function') {
+    // 如果handler是函数，说明目前已经存在一个监听者
+    this._event.set(type, [handler, fn])
+  } else {
+    // 已经有多个监听者，直接push
+    handler.push(fn)
+  }
+}
+
+EventEmitter.prototype.removeListener = function (type, fn) {
+  let handler = this._event.get(type)
+
+  if (handler && typeof handler === 'function') {
+    // 只有一个监听者，直接删除
+    this._event.delete(type, fn)
+  } else if (Array.isArray(handler)) {
+    // 是数组，说明被监听多次，要找到对应的函数
+    let position = -1
+
+    for(let i = 0; i < handler.length; i++) {
+      if (handler[i] === fn) {
+        position = i
+      }
+    }
+
+    // 如果匹配，从数组中移除
+    if (position !== -1) {
+      handler.splice(position, 1)
+
+      // 移除后，如果监听只剩一个，那么取消数组，以函数形式保存
+      if (handler.length === 1) {
+        this._event.set(type, handler[0])
+      }
+    } else {
+      return this
+    }
+  }
+}
